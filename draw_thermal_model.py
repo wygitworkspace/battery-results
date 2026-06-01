@@ -109,33 +109,91 @@ def draw_cylinder_body(ax, cx, cy, width, height, tilt=0.18):
 
 
 def draw_positive_terminal(ax, cx, cy_top, a, b):
-    """Draw the positive terminal cap on top of the battery."""
-    cap_height = 0.12
-    # Outer metal ring
-    outer_ring = Ellipse((cx, cy_top + cap_height), a * 2 * 0.95, 2 * b * 0.95,
-                         facecolor=COLOR_METAL, edgecolor=(0.4, 0.4, 0.42), linewidth=1.0, zorder=5)
+    """
+    Draw the positive terminal cap on top of the battery.
+    
+    Improved version: the cap sits directly on top of the battery cylinder
+    with a visible 3D side wall (short cylinder), metallic gradient shading,
+    insulation ring, and a raised central bump with specular highlight.
+    """
+    # --- Parameters ---
+    cap_side_height = 0.10  # height of the cap side wall
+    cap_radius_factor = 0.92  # slightly smaller than battery top
+    cap_a = a * cap_radius_factor  # half-width of cap ellipse
+    cap_b = b * cap_radius_factor  # half-height (perspective)
+
+    # The cap bottom sits exactly at cy_top (battery top ellipse center)
+    cap_bottom_y = cy_top
+    cap_top_y = cap_bottom_y + cap_side_height
+
+    # --- 1. Side wall of the cap (short metallic cylinder) ---
+    # Draw gradient strips for metallic look
+    n_strips = 30
+    for i in range(n_strips):
+        frac = i / n_strips
+        x_left = cx - cap_a + frac * (2 * cap_a)
+        strip_w = (2 * cap_a) / n_strips
+        # Metallic shading: brighter in center, darker at edges
+        dist_from_center = abs(frac - 0.5) / 0.5
+        brightness = 0.82 - 0.25 * dist_from_center ** 1.5
+        color = (brightness, brightness, brightness + 0.03, 0.95)
+        rect = plt.Rectangle((x_left, cap_bottom_y), strip_w, cap_side_height,
+                              facecolor=color, edgecolor="none", zorder=4.5)
+        ax.add_patch(rect)
+
+    # Side wall outline (left and right edges)
+    ax.plot([cx - cap_a, cx - cap_a], [cap_bottom_y, cap_top_y],
+            color=(0.35, 0.35, 0.38), lw=1.3, zorder=4.6)
+    ax.plot([cx + cap_a, cx + cap_a], [cap_bottom_y, cap_top_y],
+            color=(0.35, 0.35, 0.38), lw=1.3, zorder=4.6)
+
+    # --- 2. Top face of the cap (outer metal ring) ---
+    outer_ring = Ellipse((cx, cap_top_y), 2 * cap_a, 2 * cap_b,
+                         facecolor=(0.78, 0.78, 0.81), edgecolor=(0.35, 0.35, 0.38),
+                         linewidth=1.2, zorder=5)
     ax.add_patch(outer_ring)
-    # Highlight on ring
-    highlight = Ellipse((cx - a * 0.2, cy_top + cap_height + b * 0.15), a * 0.6, b * 0.5,
-                        facecolor=COLOR_METAL_HIGHLIGHT, edgecolor="none", alpha=0.6, zorder=5.1)
+
+    # Specular highlight on outer ring (upper-left)
+    hl_offset_x = -cap_a * 0.25
+    hl_offset_y = cap_b * 0.2
+    highlight = Ellipse((cx + hl_offset_x, cap_top_y + hl_offset_y),
+                        cap_a * 0.7, cap_b * 0.55,
+                        facecolor=(0.95, 0.95, 0.98), edgecolor="none",
+                        alpha=0.5, zorder=5.05)
     ax.add_patch(highlight)
 
-    # Black insulation ring
-    insul_ring = Ellipse((cx, cy_top + cap_height), a * 2 * 0.7, 2 * b * 0.7,
-                         facecolor=COLOR_INSULATION, edgecolor=(0.1, 0.1, 0.1), linewidth=0.8, zorder=5.2)
+    # --- 3. Black insulation ring ---
+    insul_a = cap_a * 0.72
+    insul_b = cap_b * 0.72
+    insul_ring = Ellipse((cx, cap_top_y), 2 * insul_a, 2 * insul_b,
+                         facecolor=(0.12, 0.12, 0.12), edgecolor=(0.05, 0.05, 0.05),
+                         linewidth=0.9, zorder=5.1)
     ax.add_patch(insul_ring)
 
-    # Central positive bump
-    bump = Ellipse((cx, cy_top + cap_height + 0.02), a * 2 * 0.35, 2 * b * 0.45,
-                   facecolor=(0.82, 0.82, 0.85), edgecolor=(0.5, 0.5, 0.52), linewidth=0.8, zorder=5.3)
-    ax.add_patch(bump)
-    # Bump highlight
-    bump_hl = Ellipse((cx - a * 0.05, cy_top + cap_height + 0.04), a * 0.3, b * 0.35,
-                      facecolor=(0.97, 0.97, 1.0), edgecolor="none", alpha=0.7, zorder=5.4)
+    # --- 4. Central raised positive bump ---
+    bump_a = cap_a * 0.38
+    bump_b = cap_b * 0.50
+    # Bump base (slightly darker ring to suggest elevation)
+    bump_base = Ellipse((cx, cap_top_y + 0.01), 2 * bump_a * 1.1, 2 * bump_b * 1.1,
+                        facecolor=(0.6, 0.6, 0.63), edgecolor=(0.4, 0.4, 0.42),
+                        linewidth=0.7, zorder=5.2)
+    ax.add_patch(bump_base)
+
+    # Bump top surface
+    bump_top = Ellipse((cx, cap_top_y + 0.025), 2 * bump_a, 2 * bump_b,
+                       facecolor=(0.82, 0.82, 0.86), edgecolor=(0.5, 0.5, 0.53),
+                       linewidth=0.8, zorder=5.3)
+    ax.add_patch(bump_top)
+
+    # Bump specular highlight
+    bump_hl = Ellipse((cx - bump_a * 0.2, cap_top_y + 0.035),
+                      bump_a * 0.6, bump_b * 0.5,
+                      facecolor=(0.98, 0.98, 1.0), edgecolor="none",
+                      alpha=0.7, zorder=5.4)
     ax.add_patch(bump_hl)
 
-    # "+" label
-    ax.text(cx, cy_top + cap_height + 0.14, "+", fontsize=9, fontweight="bold",
+    # --- 5. "+" label above the terminal ---
+    ax.text(cx, cap_top_y + cap_b + 0.06, "+", fontsize=10, fontweight="bold",
             ha="center", va="center", color="black", zorder=6)
 
 
@@ -389,17 +447,6 @@ def create_figure():
     # ===================================================================
     # CENTER: Transition arrow between left and right
     # ===================================================================
-    # Use figure coordinates for cross-axes arrow
-    arrow = FancyArrowPatch(
-        posA=(1.7, 0.3), posB=(-1.0, 0.3),
-        arrowstyle="->,head_width=0.25,head_length=0.15",
-        color=COLOR_ARROW, lw=4, mutation_scale=20,
-        connectionstyle="arc3,rad=0", zorder=20,
-        transform=ax_right.transData
-    )
-    # Draw on right axes since it extends to left edge of right panel
-    # Actually draw a simpler approach: use fig.patches
-    # Let's draw it on ax_right with adjusted coords
     ax_right.annotate(
         "", xy=(-0.95, 0.5), xytext=(-1.45, 0.5),
         arrowprops=dict(arrowstyle="->,head_width=0.4,head_length=0.2",
